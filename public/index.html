@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuickPoll</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #f5f6f8;
+        color: #1f2532;
+      }
+
+      .wrapper {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      h1 {
+        margin-bottom: 16px;
+        font-size: 2rem;
+      }
+
+      section {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 12px 24px rgba(31, 37, 50, 0.08);
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        font-weight: 600;
+      }
+
+      input,
+      textarea,
+      button {
+        font: inherit;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #cbd2e1;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: 2px solid #4f46e5;
+        border-color: transparent;
+      }
+
+      button {
+        cursor: pointer;
+        background: #4f46e5;
+        color: #fff;
+        border: none;
+        font-weight: 600;
+        transition: background 0.2s ease;
+      }
+
+      button.secondary {
+        background: #fff;
+        color: #4f46e5;
+        border: 1px solid #4f46e5;
+      }
+
+      button:hover {
+        background: #4338ca;
+      }
+
+      button.secondary:hover {
+        background: rgba(79, 70, 229, 0.1);
+      }
+
+      .options-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .vote-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e3e7f0;
+        border-radius: 8px;
+        background: rgba(79, 70, 229, 0.05);
+      }
+
+      .status {
+        min-height: 20px;
+        color: #dc2626;
+        font-size: 0.9rem;
+      }
+
+      .status.success {
+        color: #059669;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <h1>QuickPoll</h1>
+
+      <section>
+        <h2>Create a Poll</h2>
+        <form id="create-poll-form">
+          <label for="question">Question</label>
+          <input id="question" name="question" type="text" placeholder="What should we order for lunch?" required />
+
+          <label>Options</label>
+          <div id="options-container" class="options-list"></div>
+
+          <div>
+            <button id="add-option" type="button" class="secondary">+ Add Option</button>
+          </div>
+
+          <button type="submit">Create Poll</button>
+          <div id="create-status" class="status"></div>
+        </form>
+      </section>
+
+      <section>
+        <h2>Find a Poll</h2>
+        <form id="load-poll-form">
+          <label for="poll-id">Poll ID</label>
+          <input id="poll-id" name="poll-id" type="number" min="1" required />
+          <button type="submit" class="secondary">Load Poll</button>
+          <div id="load-status" class="status"></div>
+        </form>
+      </section>
+
+      <section id="poll-section" class="hidden">
+        <h2 id="poll-question"></h2>
+        <p id="poll-meta"></p>
+        <div id="poll-status" class="status"></div>
+        <div id="poll-options" class="options-list"></div>
+      </section>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
