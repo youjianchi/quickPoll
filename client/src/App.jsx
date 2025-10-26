@@ -1,63 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
+import StatusMessage from './components/StatusMessage';
+import PollDetails from './components/PollDetails';
 import { getSupabaseClient } from './lib/supabaseClient';
 import { createPollWithOptions, fetchPollById, voteOnOption } from './lib/polls';
 
 const REFRESH_INTERVAL = 2000;
 const INITIAL_OPTIONS = ['', ''];
-
-const StatusMessage = ({ status }) => {
-  if (!status) {
-    return null;
-  }
-
-  return (
-    <div className={`status ${status.type}`}>
-      {status.message}
-    </div>
-  );
-};
-
-const PollDetails = ({ poll, onVote, isVoting }) => {
-  if (!poll) {
-    return null;
-  }
-
-  const createdAt = poll.created_at
-    ? new Date(poll.created_at).toLocaleString()
-    : '';
-
-  return (
-    <section className="panel">
-      <h2>{poll.question}</h2>
-      <p className="poll-meta">
-        Poll #{poll.id}
-        {createdAt ? ` · Created ${createdAt}` : ''}
-      </p>
-
-      <div className="options-grid">
-        {poll.options.map((option) => (
-          <div key={option.id} className="option-card">
-            <div className="option-text">{option.text}</div>
-            <div className="option-actions">
-              <span className="votes">
-                {option.votes} vote{option.votes === 1 ? '' : 's'}
-              </span>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => onVote(option.id)}
-                disabled={isVoting}
-              >
-                Vote
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-};
 
 export default function App() {
   const { client: supabase, error: configError } = getSupabaseClient();

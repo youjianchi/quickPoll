@@ -106,6 +106,20 @@ npm run build      # output goes to client/dist
 npm run preview    # optional local preview of the production bundle
 ```
 
+### Tests & linting
+
+```bash
+cd client
+npm run lint       # ESLint (browser + Node configs)
+npm run test       # Vitest + Testing Library component tests
+```
+
+## 4. Continuous Integration
+
+Pushes and pull requests targeting `main` automatically run the workflow at `.github/workflows/ci.yml`. The pipeline checks out the repo, installs dependencies via `npm ci`, then executes the lint, unit test, and build steps. The build step supplies Supabase credentials from repository secrets when available, falling back to placeholder values so pull requests from forks still succeed.
+
+Deployments to GitHub Pages continue to use `.github/workflows/pages.yml`; once the CI workflow is green, publishing is handled by the Pages pipeline on pushes to `main`.
+
 ## Common Troubleshooting
 
 - **Environment errors at runtime**: Vite requires variables to be prefixed with `VITE_`. Double-check your `.env` values.

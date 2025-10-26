@@ -12,4 +12,9 @@ export default defineConfig({
     const repoName = process.env.GITHUB_REPOSITORY?.split('/')?.[1];
     return repoName ? `/${repoName}/` : '/';
   })(),
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    globals: true,
+  },
 });
