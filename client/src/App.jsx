@@ -2,14 +2,39 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import StatusMessage from './components/StatusMessage';
 import PollDetails from './components/PollDetails';
-import { getSupabaseClient } from './lib/supabaseClient';
-import { createPollWithOptions, fetchPollById, voteOnOption } from './lib/polls';
+import {
+  signIn,
+  signUp,
+  signOut,
+  createPoll,
+  fetchPoll,
+  voteOnPoll,
+} from './lib/apiClient.js';
 
 const REFRESH_INTERVAL = 2000;
 const INITIAL_OPTIONS = ['', ''];
+const SESSION_STORAGE_KEY = 'quickpoll_session';
+
+function loadSession() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn('Failed to parse stored session', error);
+    return null;
+  }
+}
 
 export default function App() {
-  const { client: supabase, error: configError } = getSupabaseClient();
+  const [session, setSession] = useState(() => loadSession());
+  const [authMode, setAuthMode] = useState('sign-in');
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [authStatus, setAuthStatus] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(INITIAL_OPTIONS);
@@ -24,15 +49,28 @@ export default function App() {
 
   const refreshTimerRef = useRef(null);
 
+  const isAuthenticated = Boolean(session?.accessToken);
+
   const trimmedOptions = useMemo(
     () => options.map((option) => option.trim()).filter(Boolean),
     [options]
   );
 
-  const resetCreateForm = useCallback(() => {
-    setQuestion('');
-    setOptions(INITIAL_OPTIONS);
-  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (session) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    } else {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    setAuthStatus(null);
+  }, [authMode]);
 
   const stopPolling = useCallback(() => {
     if (refreshTimerRef.current) {
@@ -47,19 +85,61 @@ export default function App() {
 
       refreshTimerRef.current = setInterval(async () => {
         try {
-          const latest = await fetchPollById(supabase, pollId);
-          if (latest) {
-            setActivePoll(latest);
+          const { poll } = await fetchPoll(pollId);
+          if (poll) {
+            setActivePoll(poll);
           }
         } catch (error) {
           console.error('Failed to refresh poll:', error);
         }
       }, REFRESH_INTERVAL);
     },
-    [stopPolling, supabase]
+    [stopPolling]
   );
 
   useEffect(() => stopPolling, [stopPolling]);
+
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+    setAuthStatus(null);
+    setIsAuthenticating(true);
+
+    try {
+      if (authMode === 'sign-up') {
+        await signUp(credentials);
+        setAuthStatus({
+          type: 'success',
+          message: 'Account created. Check your inbox to confirm your email.',
+        });
+        setAuthMode('sign-in');
+      } else {
+        const authResult = await signIn(credentials);
+        setSession(authResult);
+        setAuthStatus({
+          type: 'success',
+          message: 'Signed in successfully.',
+        });
+      }
+      setCredentials({ email: '', password: '' });
+    } catch (error) {
+      setAuthStatus({
+        type: 'error',
+        message: error.message ?? 'Authentication failed.',
+      });
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!session) {
+      return;
+    }
+
+    await signOut({ refreshToken: session.refreshToken, accessToken: session.accessToken });
+    setSession(null);
+    setAuthStatus({ type: 'success', message: 'Signed out.' });
+  };
 
   const handleAddOption = useCallback(() => {
     setOptions((prev) => [...prev, '']);
@@ -71,29 +151,19 @@ export default function App() {
     );
   }, []);
 
-  if (configError) {
-    return (
-      <div className="app">
-        <h1>QuickPoll</h1>
-        <p className="subtitle">
-          Configure your Supabase environment variables to get started.
-        </p>
-        <div className="panel config-error">
-          <h2>Missing configuration</h2>
-          <p>{configError}</p>
-          <p>
-            Copy <code>.env.example</code> to <code>.env</code> inside the{' '}
-            <code>client/</code> folder, then fill in your Supabase project URL and anon key.
-            After saving, restart <code>npm run dev</code>.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const resetCreateForm = useCallback(() => {
+    setQuestion('');
+    setOptions(INITIAL_OPTIONS);
+  }, []);
 
   const handleCreatePoll = async (event) => {
     event.preventDefault();
     setCreateStatus(null);
+
+    if (!isAuthenticated) {
+      setCreateStatus({ type: 'error', message: 'Sign in to create polls.' });
+      return;
+    }
 
     const trimmedQuestion = question.trim();
 
@@ -113,23 +183,27 @@ export default function App() {
     setIsCreating(true);
 
     try {
-      const pollId = await createPollWithOptions(
-        supabase,
-        trimmedQuestion,
-        trimmedOptions
-      );
+      const { poll } = await createPoll({
+        accessToken: session.accessToken,
+        question: trimmedQuestion,
+        options: trimmedOptions,
+      });
 
-      const latest = await fetchPollById(supabase, pollId);
-      setActivePoll(latest);
-      setPollIdInput(String(pollId));
-      startPolling(pollId);
+      setActivePoll(poll);
+      setPollIdInput(String(poll.id));
+      startPolling(poll.id);
       resetCreateForm();
       setCreateStatus({
         type: 'success',
-        message: `Poll created (ID: ${pollId}).`,
+        message: `Poll created (ID: ${poll.id}).`,
       });
     } catch (error) {
-      console.error('Failed to create poll:', error);
+      if (error.status === 401) {
+        setSession(null);
+        setCreateStatus({ type: 'error', message: 'Session expired. Please sign in again.' });
+        return;
+      }
+
       setCreateStatus({
         type: 'error',
         message: error.message ?? 'Failed to create poll.',
@@ -153,7 +227,7 @@ export default function App() {
     setIsLoadingPoll(true);
 
     try {
-      const poll = await fetchPollById(supabase, pollId);
+      const { poll } = await fetchPoll(pollId);
 
       if (!poll) {
         setActivePoll(null);
@@ -169,7 +243,6 @@ export default function App() {
         message: `Poll #${poll.id} loaded.`,
       });
     } catch (error) {
-      console.error('Failed to load poll:', error);
       setPollStatus({
         type: 'error',
         message: error.message ?? 'Failed to load poll.',
@@ -188,25 +261,10 @@ export default function App() {
     setIsVoting(true);
 
     try {
-      const voteApplied = await voteOnOption(
-        supabase,
-        activePoll.id,
-        optionId
-      );
-
-      if (!voteApplied) {
-        setPollStatus({
-          type: 'error',
-          message: 'Option not found for this poll.',
-        });
-        return;
-      }
-
-      const latest = await fetchPollById(supabase, activePoll.id);
-      setActivePoll(latest);
+      const { poll } = await voteOnPoll({ pollId: activePoll.id, optionId });
+      setActivePoll(poll);
       setPollStatus({ type: 'success', message: 'Thanks for voting!' });
     } catch (error) {
-      console.error('Failed to record vote:', error);
       setPollStatus({
         type: 'error',
         message: error.message ?? 'Failed to record vote.',
@@ -220,53 +278,127 @@ export default function App() {
     <div className="app">
       <h1>QuickPoll</h1>
       <p className="subtitle">
-        Create polls, share them, and watch votes roll in live. Powered by Supabase — no custom backend required.
+        Create polls, share them, and watch votes roll in live. Now with Supabase-backed authentication.
       </p>
+
+      <section className="panel auth-panel">
+        <h2>Account</h2>
+        {isAuthenticated ? (
+          <div className="auth-state">
+            <p>
+              Signed in as <strong>{session.user.email}</strong>
+            </p>
+            <button type="button" className="secondary" onClick={handleSignOut}>
+              Sign out
+            </button>
+            <StatusMessage status={authStatus} />
+          </div>
+        ) : (
+          <form className="form" onSubmit={handleAuthSubmit}>
+            <div className="auth-toggle">
+              <label>
+                <input
+                  type="radio"
+                  name="auth-mode"
+                  value="sign-in"
+                  checked={authMode === 'sign-in'}
+                  onChange={() => setAuthMode('sign-in')}
+                />{' '}
+                Sign in
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="auth-mode"
+                  value="sign-up"
+                  checked={authMode === 'sign-up'}
+                  onChange={() => setAuthMode('sign-up')}
+                />{' '}
+                Sign up
+              </label>
+            </div>
+
+            <label htmlFor="auth-email">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              value={credentials.email}
+              onChange={(event) =>
+                setCredentials((prev) => ({ ...prev, email: event.target.value }))
+              }
+              required
+            />
+
+            <label htmlFor="auth-password">Password</label>
+            <input
+              id="auth-password"
+              type="password"
+              value={credentials.password}
+              onChange={(event) =>
+                setCredentials((prev) => ({ ...prev, password: event.target.value }))
+              }
+              minLength={6}
+              required
+            />
+
+            <button type="submit" className="primary" disabled={isAuthenticating}>
+              {isAuthenticating
+                ? authMode === 'sign-up'
+                  ? 'Creating account…'
+                  : 'Signing in…'
+                : authMode === 'sign-up'
+                  ? 'Create account'
+                  : 'Sign in'}
+            </button>
+            <StatusMessage status={authStatus} />
+          </form>
+        )}
+      </section>
 
       <section className="panel">
         <h2>Create a Poll</h2>
-        <form className="form" onSubmit={handleCreatePoll}>
-          <label htmlFor="question">Question</label>
-          <input
-            id="question"
-            name="question"
-            type="text"
-            placeholder="What should we order for lunch?"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            required
-          />
+        {isAuthenticated ? (
+          <form className="form" onSubmit={handleCreatePoll}>
+            <label htmlFor="question">Question</label>
+            <input
+              id="question"
+              name="question"
+              type="text"
+              placeholder="What should we order for lunch?"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              required
+            />
 
-          <label>Options</label>
-          <div className="options-editor">
-            {options.map((option, index) => (
-              <input
-                key={index}
-                type="text"
-                value={option}
-                placeholder={`Option ${index + 1}`}
-                onChange={(event) =>
-                  handleOptionChange(index, event.target.value)
-                }
-                required={index < 2}
-              />
-            ))}
-          </div>
+            <label>Options</label>
+            <div className="options-editor">
+              {options.map((option, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  value={option}
+                  placeholder={`Option ${index + 1}`}
+                  onChange={(event) =>
+                    handleOptionChange(index, event.target.value)
+                  }
+                  required={index < 2}
+                />
+              ))}
+            </div>
 
-          <div className="form-actions">
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleAddOption}
-            >
-              + Add Option
-            </button>
-            <button type="submit" className="primary" disabled={isCreating}>
-              {isCreating ? 'Creating…' : 'Create Poll'}
-            </button>
-          </div>
-          <StatusMessage status={createStatus} />
-        </form>
+            <div className="form-actions">
+              <button type="button" className="secondary" onClick={handleAddOption}>
+                + Add Option
+              </button>
+              <button type="submit" className="primary" disabled={isCreating}>
+                {isCreating ? 'Creating…' : 'Create Poll'}
+              </button>
+            </div>
+            <StatusMessage status={createStatus} />
+          </form>
+        ) : (
+          <p className="muted">Sign in to create a new poll.</p>
+        )}
       </section>
 
       <section className="panel">
@@ -280,11 +412,7 @@ export default function App() {
             onChange={(event) => setPollIdInput(event.target.value)}
             required
           />
-          <button
-            type="submit"
-            className="secondary"
-            disabled={isLoadingPoll}
-          >
+          <button type="submit" className="secondary" disabled={isLoadingPoll}>
             {isLoadingPoll ? 'Loading…' : 'Load Poll'}
           </button>
         </form>

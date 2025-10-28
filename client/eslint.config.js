@@ -41,4 +41,15 @@ export default defineConfig([
       },
     },
   },
+  {
+    files: ['src/setupTests.js'],
+    languageOptions: {
+      globals: {
+        ...globals.vitest,
+        beforeEach: true,
+        fetch: true,
+        global: true,
+      },
+    },
+  },
 ])
