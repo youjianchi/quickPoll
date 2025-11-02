@@ -9,6 +9,8 @@ import {
   createPoll,
   fetchPoll,
   voteOnPoll,
+  checkHealth,
+  getApiBaseUrl,
 } from './lib/apiClient.js';
 
 const REFRESH_INTERVAL = 2000;
@@ -35,6 +37,7 @@ export default function App() {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [authStatus, setAuthStatus] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [configStatus, setConfigStatus] = useState(null);
 
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(INITIAL_OPTIONS);
@@ -71,6 +74,34 @@ export default function App() {
   useEffect(() => {
     setAuthStatus(null);
   }, [authMode]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyApi = async () => {
+      try {
+        await checkHealth();
+        if (isMounted) {
+          setConfigStatus(null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setConfigStatus({
+            type: 'error',
+            message:
+              error.message ??
+              `Unable to reach API at ${getApiBaseUrl()}. Verify deployment configuration.`,
+          });
+        }
+      }
+    };
+
+    verifyApi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const stopPolling = useCallback(() => {
     if (refreshTimerRef.current) {
@@ -280,6 +311,16 @@ export default function App() {
       <p className="subtitle">
         Create polls, share them, and watch votes roll in live. Now with Supabase-backed authentication.
       </p>
+      {configStatus ? (
+        <section className="panel config-error">
+          <h2>Configuration issue</h2>
+          <p>{configStatus.message}</p>
+          <p>
+            Ensure `VITE_API_BASE_URL` points to your backend and `CLIENT_ORIGIN` on the server includes{' '}
+            {typeof window !== 'undefined' ? window.location.origin : 'this domain'}.
+          </p>
+        </section>
+      ) : null}
 
       <section className="panel auth-panel">
         <h2>Account</h2>

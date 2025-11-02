@@ -1,6 +1,23 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000')
   .replace(/\/$/, '');
 
+function wrapNetworkError(error) {
+  if (error instanceof TypeError) {
+    const message = [
+      'Unable to reach the API.',
+      `Expected base URL: ${API_BASE_URL}`,
+      'Verify VITE_API_BASE_URL in the frontend build and that the backend is reachable (CORS + HTTPS).',
+    ].join(' ');
+
+    const wrapped = new Error(message);
+    wrapped.cause = error;
+    wrapped.status = 0;
+    return wrapped;
+  }
+
+  return error;
+}
+
 async function request(path, { method = 'GET', headers = {}, body, accessToken } = {}) {
   const finalHeaders = {
     'Content-Type': 'application/json',
@@ -11,11 +28,17 @@ async function request(path, { method = 'GET', headers = {}, body, accessToken }
     finalHeaders.Authorization = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: finalHeaders,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: finalHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (error) {
+    throw wrapNetworkError(error);
+  }
 
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const payload = isJson ? await response.json() : await response.text();
@@ -27,6 +50,14 @@ async function request(path, { method = 'GET', headers = {}, body, accessToken }
   }
 
   return payload;
+}
+
+export function getApiBaseUrl() {
+  return API_BASE_URL;
+}
+
+export function checkHealth() {
+  return request('/health');
 }
 
 export function signUp({ email, password }) {

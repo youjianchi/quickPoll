@@ -1,0 +1,14 @@
+{
+  "name": "quickpoll-monorepo",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix server run start",
+    "dev": "npm --prefix server run dev",
+    "lint": "npm --prefix server run lint && npm --prefix client run lint",
+    "test": "npm --prefix server run test && npm --prefix client run test",
+    "render:build": "npm --prefix server ci --omit=dev"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
