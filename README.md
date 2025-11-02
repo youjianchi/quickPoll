@@ -150,9 +150,9 @@ Add these in **Settings → Secrets and variables → Actions**:
 | `SUPABASE_URL` | Secret | Backend CI + packaging |
 | `SUPABASE_SERVICE_ROLE_KEY` | Secret | Backend CI + packaging |
 | `SUPABASE_ANON_KEY` | Secret | Backend CI + packaging |
-| `VITE_API_BASE_URL` | Variable | Frontend CI + GitHub Pages build (URL of your deployed API) |
+| `VITE_API_BASE_URL` | Variable or Secret | Frontend CI + GitHub Pages build (URL of your deployed API) |
 
-> The GitHub Pages workflow defaults to `https://api.example.com` if `VITE_API_BASE_URL` is not configured, but production deployments should point to your live backend.
+> The GitHub Pages workflow defaults to `https://api.example.com` if `VITE_API_BASE_URL` is not configured. Store it as either a repository variable or secret so production bundles point to your live backend.
 
 ## 5. Rollout & rollback strategy
 
