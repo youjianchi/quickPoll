@@ -14,8 +14,9 @@ describe('StatusMessage', () => {
       />
     );
 
-    const message = screen.getByText('Poll created!');
+    const message = screen.getByRole('status');
     expect(message).toBeInTheDocument();
-    expect(message).toHaveClass('status', 'success');
+    expect(message).toHaveTextContent('Poll created!');
+    expect(message.className).toMatch(/bg-emerald-50/);
   });
 });

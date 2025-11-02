@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import './App.css';
 import StatusMessage from './components/StatusMessage';
 import PollDetails from './components/PollDetails';
 import {
@@ -16,6 +15,15 @@ import {
 const REFRESH_INTERVAL = 2000;
 const INITIAL_OPTIONS = ['', ''];
 const SESSION_STORAGE_KEY = 'quickpoll_session';
+
+const primaryButtonClasses =
+  'inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60';
+const secondaryButtonClasses =
+  'inline-flex items-center justify-center rounded-xl border border-indigo-600 bg-white px-4 py-2 text-sm font-semibold text-indigo-600 shadow-sm transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60';
+const panelClasses = 'flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-lg shadow-slate-200/80';
+const labelClasses = 'text-sm font-semibold text-slate-700';
+const inputClasses =
+  'w-full rounded-xl border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200';
 
 function loadSession() {
   if (typeof window === 'undefined') {
@@ -306,161 +314,193 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <h1>QuickPoll</h1>
-      <p className="subtitle">
-        Create polls, share them, and watch votes roll in live. Now with Supabase-backed authentication.
-      </p>
-      {configStatus ? (
-        <section className="panel config-error">
-          <h2>Configuration issue</h2>
-          <p>{configStatus.message}</p>
-          <p>
-            Ensure `VITE_API_BASE_URL` points to your backend and `CLIENT_ORIGIN` on the server includes{' '}
-            {typeof window !== 'undefined' ? window.location.origin : 'this domain'}.
+    <div className="min-h-screen bg-slate-100 px-4 py-10">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <header className="text-center">
+          <h1 className="text-4xl font-semibold text-slate-900">QuickPoll</h1>
+          <p className="mx-auto mt-2 max-w-2xl text-base text-slate-600">
+            Create polls, share them, and watch votes roll in live — now with Supabase-backed
+            authentication.
           </p>
-        </section>
-      ) : null}
+        </header>
 
-      <section className="panel auth-panel">
-        <h2>Account</h2>
-        {isAuthenticated ? (
-          <div className="auth-state">
-            <p>
-              Signed in as <strong>{session.user.email}</strong>
+        {configStatus ? (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800 shadow">
+            <h2 className="text-lg font-semibold text-amber-900">Configuration issue</h2>
+            <p className="mt-1">{configStatus.message}</p>
+            <p className="mt-2">
+              Ensure <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">VITE_API_BASE_URL</code>{' '}
+              points to your backend and{' '}
+              <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">CLIENT_ORIGIN</code> on the server
+              includes {typeof window !== 'undefined' ? window.location.origin : 'this domain'}.
             </p>
-            <button type="button" className="secondary" onClick={handleSignOut}>
-              Sign out
-            </button>
-            <StatusMessage status={authStatus} />
-          </div>
-        ) : (
-          <form className="form" onSubmit={handleAuthSubmit}>
-            <div className="auth-toggle">
-              <label>
-                <input
-                  type="radio"
-                  name="auth-mode"
-                  value="sign-in"
-                  checked={authMode === 'sign-in'}
-                  onChange={() => setAuthMode('sign-in')}
-                />{' '}
-                Sign in
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="auth-mode"
-                  value="sign-up"
-                  checked={authMode === 'sign-up'}
-                  onChange={() => setAuthMode('sign-up')}
-                />{' '}
-                Sign up
-              </label>
+          </section>
+        ) : null}
+
+        <section className={panelClasses}>
+          <h2 className="text-xl font-semibold text-slate-900">Account</h2>
+          {isAuthenticated ? (
+            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-700">
+                Signed in as{' '}
+                <strong className="font-semibold text-slate-900">{session.user.email}</strong>
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" className={secondaryButtonClasses} onClick={handleSignOut}>
+                  Sign out
+                </button>
+              </div>
+              <StatusMessage status={authStatus} />
             </div>
+          ) : (
+            <form className="flex flex-col gap-4" onSubmit={handleAuthSubmit}>
+              <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="auth-mode"
+                    value="sign-in"
+                    checked={authMode === 'sign-in'}
+                    onChange={() => setAuthMode('sign-in')}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  Sign in
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="auth-mode"
+                    value="sign-up"
+                    checked={authMode === 'sign-up'}
+                    onChange={() => setAuthMode('sign-up')}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  Sign up
+                </label>
+              </div>
 
-            <label htmlFor="auth-email">Email</label>
-            <input
-              id="auth-email"
-              type="email"
-              value={credentials.email}
-              onChange={(event) =>
-                setCredentials((prev) => ({ ...prev, email: event.target.value }))
-              }
-              required
-            />
-
-            <label htmlFor="auth-password">Password</label>
-            <input
-              id="auth-password"
-              type="password"
-              value={credentials.password}
-              onChange={(event) =>
-                setCredentials((prev) => ({ ...prev, password: event.target.value }))
-              }
-              minLength={6}
-              required
-            />
-
-            <button type="submit" className="primary" disabled={isAuthenticating}>
-              {isAuthenticating
-                ? authMode === 'sign-up'
-                  ? 'Creating account…'
-                  : 'Signing in…'
-                : authMode === 'sign-up'
-                  ? 'Create account'
-                  : 'Sign in'}
-            </button>
-            <StatusMessage status={authStatus} />
-          </form>
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>Create a Poll</h2>
-        {isAuthenticated ? (
-          <form className="form" onSubmit={handleCreatePoll}>
-            <label htmlFor="question">Question</label>
-            <input
-              id="question"
-              name="question"
-              type="text"
-              placeholder="What should we order for lunch?"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              required
-            />
-
-            <label>Options</label>
-            <div className="options-editor">
-              {options.map((option, index) => (
+              <div className="flex flex-col gap-2">
+                <label className={labelClasses} htmlFor="auth-email">
+                  Email
+                </label>
                 <input
-                  key={index}
-                  type="text"
-                  value={option}
-                  placeholder={`Option ${index + 1}`}
+                  id="auth-email"
+                  type="email"
+                  value={credentials.email}
                   onChange={(event) =>
-                    handleOptionChange(index, event.target.value)
+                    setCredentials((prev) => ({ ...prev, email: event.target.value }))
                   }
-                  required={index < 2}
+                  className={inputClasses}
+                  required
                 />
-              ))}
-            </div>
+              </div>
 
-            <div className="form-actions">
-              <button type="button" className="secondary" onClick={handleAddOption}>
-                + Add Option
+              <div className="flex flex-col gap-2">
+                <label className={labelClasses} htmlFor="auth-password">
+                  Password
+                </label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  value={credentials.password}
+                  onChange={(event) =>
+                    setCredentials((prev) => ({ ...prev, password: event.target.value }))
+                  }
+                  minLength={6}
+                  className={inputClasses}
+                  required
+                />
+              </div>
+
+              <button type="submit" className={primaryButtonClasses} disabled={isAuthenticating}>
+                {isAuthenticating
+                  ? authMode === 'sign-up'
+                    ? 'Creating account…'
+                    : 'Signing in…'
+                  : authMode === 'sign-up'
+                    ? 'Create account'
+                    : 'Sign in'}
               </button>
-              <button type="submit" className="primary" disabled={isCreating}>
-                {isCreating ? 'Creating…' : 'Create Poll'}
-              </button>
-            </div>
-            <StatusMessage status={createStatus} />
+              <StatusMessage status={authStatus} />
+            </form>
+          )}
+        </section>
+
+        <section className={panelClasses}>
+          <h2 className="text-xl font-semibold text-slate-900">Create a Poll</h2>
+          {isAuthenticated ? (
+            <form className="flex flex-col gap-4" onSubmit={handleCreatePoll}>
+              <div className="flex flex-col gap-2">
+                <label className={labelClasses} htmlFor="question">
+                  Question
+                </label>
+                <input
+                  id="question"
+                  name="question"
+                  type="text"
+                  placeholder="What should we order for lunch?"
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  className={inputClasses}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <span className={labelClasses}>Options</span>
+                <div className="flex flex-col gap-2">
+                  {options.map((option, index) => (
+                    <input
+                      key={index}
+                      type="text"
+                      value={option}
+                      placeholder={`Option ${index + 1}`}
+                      onChange={(event) =>
+                        handleOptionChange(index, event.target.value)
+                      }
+                      className={inputClasses}
+                      required={index < 2}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-end gap-3">
+                <button type="button" className={secondaryButtonClasses} onClick={handleAddOption}>
+                  + Add Option
+                </button>
+                <button type="submit" className={primaryButtonClasses} disabled={isCreating}>
+                  {isCreating ? 'Creating…' : 'Create Poll'}
+                </button>
+              </div>
+              <StatusMessage status={createStatus} />
+            </form>
+          ) : (
+            <p className="text-sm text-slate-600">Sign in to create a new poll.</p>
+          )}
+        </section>
+
+        <section className={panelClasses}>
+          <h2 className="text-xl font-semibold text-slate-900">Find a Poll</h2>
+          <form className="flex flex-wrap gap-3" onSubmit={handleLoadPoll}>
+            <input
+              type="number"
+              min="1"
+              placeholder="Enter poll ID"
+              value={pollIdInput}
+              onChange={(event) => setPollIdInput(event.target.value)}
+              className={`${inputClasses} flex-1 min-w-[180px]`}
+              required
+            />
+            <button type="submit" className={secondaryButtonClasses} disabled={isLoadingPoll}>
+              {isLoadingPoll ? 'Loading…' : 'Load Poll'}
+            </button>
           </form>
-        ) : (
-          <p className="muted">Sign in to create a new poll.</p>
-        )}
-      </section>
+          <StatusMessage status={pollStatus} />
+        </section>
 
-      <section className="panel">
-        <h2>Find a Poll</h2>
-        <form className="form horizontal" onSubmit={handleLoadPoll}>
-          <input
-            type="number"
-            min="1"
-            placeholder="Enter poll ID"
-            value={pollIdInput}
-            onChange={(event) => setPollIdInput(event.target.value)}
-            required
-          />
-          <button type="submit" className="secondary" disabled={isLoadingPoll}>
-            {isLoadingPoll ? 'Loading…' : 'Load Poll'}
-          </button>
-        </form>
-        <StatusMessage status={pollStatus} />
-      </section>
-
-      <PollDetails poll={activePoll} onVote={handleVote} isVoting={isVoting} />
+        <PollDetails poll={activePoll} onVote={handleVote} isVoting={isVoting} />
+      </div>
     </div>
   );
 }

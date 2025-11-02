@@ -1,6 +1,6 @@
 # QuickPoll Client
 
-This is the Vite-powered React frontend for QuickPoll. It talks to the Node/Express API (`server/`) instead of Supabase directly. Authenticated users can create polls while everyone can browse and vote.
+This is the Vite-powered React frontend for QuickPoll, styled with Tailwind CSS. It talks to the Node/Express API (`server/`) instead of Supabase directly. Authenticated users can create polls while everyone can browse and vote.
 
 ## Environment variables
 

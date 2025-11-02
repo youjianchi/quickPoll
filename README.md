@@ -1,14 +1,13 @@
 # QuickPoll (React + Node + Supabase)
 
-QuickPoll is a full-stack polling app: a Vite + React client backed by a lightweight Node/Express API that talks to Supabase. Authenticated users can create polls, anyone can find a poll by ID, and voting stays open to all visitors. The repository is set up with GitHub Actions for CI, GitHub Pages for the static frontend, and a manual backend packaging workflow so you can roll releases forward or backward on demand.
+QuickPoll is a full-stack polling app: a Vite + React + Tailwind CSS client backed by a lightweight Node/Express API that talks to Supabase. Authenticated users can create polls, anyone can find a poll by ID, and voting stays open to all visitors. The repository ships with GitHub Actions for CI, a Vercel-ready frontend, and a backend packaging workflow so you can roll releases forward or backward on demand.
 
 ```
 quickpoll/
-├─ client/          # Vite + React SPA
+├─ client/          # Vite + React SPA (Tailwind CSS)
 ├─ server/          # Node/Express API (Supabase integration + auth)
 ├─ .github/workflows
 │   ├─ ci.yml                 # Frontend + backend lint/test/build pipeline
-│   ├─ pages.yml              # GitHub Pages deployment (workflow_dispatch supports rollbacks)
 │   └─ backend-package.yml    # Produces a deployable backend bundle for any ref
 └─ .env.example     # Backend environment template
 ```
@@ -138,7 +137,6 @@ npm run test
 ## 4. Continuous Integration & Delivery
 
 - **CI (`.github/workflows/ci.yml`)** — Runs on every push/PR to `main`, linting + testing both the frontend and backend. The frontend also performs a production build.
-- **Frontend deploy (`.github/workflows/pages.yml`)** — Publishes the static site to GitHub Pages after CI succeeds. The workflow supports manual runs with a `ref` input, so you can redeploy any historical commit (handy for rollbacks).
 - **Backend package (`.github/workflows/backend-package.yml`)** — Manual workflow that installs dependencies, runs tests, and uploads a tarball containing the server (with production dependencies). Provide a `ref` when dispatching to roll out or roll back to a specific commit. Deploy the tarball to your hosting provider of choice (Railway, Render, Fly, etc.).
 
 ### Required repository secrets/variables
@@ -150,20 +148,17 @@ Add these in **Settings → Secrets and variables → Actions**:
 | `SUPABASE_URL` | Secret | Backend CI + packaging |
 | `SUPABASE_SERVICE_ROLE_KEY` | Secret | Backend CI + packaging |
 | `SUPABASE_ANON_KEY` | Secret | Backend CI + packaging |
-| `VITE_API_BASE_URL` | Variable or Secret | Frontend CI + GitHub Pages build (URL of your deployed API) |
-
-> The GitHub Pages workflow defaults to `https://api.example.com` if `VITE_API_BASE_URL` is not configured. Store it as either a repository variable or secret so production bundles point to your live backend.
+| `VITE_API_BASE_URL` | Variable or Secret | Frontend CI + Vercel build (URL of your deployed API) |
 
 ## 5. Rollout & rollback strategy
 
 1. Push changes to a feature branch, open a PR, and let the `CI` workflow validate both apps.
-2. Merge to `main` when ready. CI will rerun and GitHub Pages will build the latest frontend bundle.
+2. Merge to `main` when ready. CI will rerun so you have a green artifact for the commit.
 3. Deploy the backend to Render (recommended setup below) or your platform of choice. A Render blueprint is provided via the root `package.json` so you can use `npm start` from the repo root.
-4. If you need to roll back:
+4. Kick off a new Vercel deployment (either automatically via Git integration or manually trigger a redeploy) so the frontend picks up the latest bundle.
+5. If you need to roll back:
    - Re-run **Package Backend** with the previous commit SHA to redeploy the prior backend bundle.
-   - Trigger **Deploy to GitHub Pages → Run workflow** with the same commit SHA to republish the earlier frontend.
-
-Both workflows keep recent artifacts so you can download and redeploy manually if needed.
+   - Redeploy the Vercel project pointing at the commit you want to restore.
 
 ## Common Troubleshooting
 
@@ -171,9 +166,9 @@ Both workflows keep recent artifacts so you can download and redeploy manually i
 - **API CORS errors**: Update `CLIENT_ORIGIN` in `.env` (and redeploy the backend) to include the URL of your frontend.
 - **Email confirmations**: Supabase requires email confirmation by default. Complete the confirmation step before signing in.
 - **Schema mismatches**: Ensure you added the `created_by` column and re-ran the SQL migration above. Stale tables will cause inserts to fail.
-- **GitHub Pages pointing at the wrong API**: Set `VITE_API_BASE_URL` as a repository variable so builds target your deployed backend.
+- **Vercel build cannot reach the API**: Double-check the project environment variable `VITE_API_BASE_URL` and ensure your backend `CLIENT_ORIGIN` includes the deployed Vercel domain.
 
-## Render deployment quick start
+## Render backend quick start
 
 The repository root now exposes a top-level `package.json` with scripts tailored for Render:
 
@@ -184,5 +179,18 @@ The repository root now exposes a top-level `package.json` with scripts tailored
 | **Start Command** | `npm start` |
 
 The `render:build` script installs production dependencies for the server package, so the runtime container only ships what Express needs. Add the required environment variables in Render (**SUPABASE_URL**, **SUPABASE_SERVICE_ROLE_KEY**, **SUPABASE_ANON_KEY**, and **CLIENT_ORIGIN**) and the service will boot using the same entrypoint as local production (`node src/index.js`).
+
+## Vercel frontend quick start
+
+When deploying the React client with Vercel, point the project at the `client/` directory:
+
+| Vercel setting     | Value |
+| ------------------ | ----- |
+| **Root Directory** | `client` |
+| **Install Command** | `npm install` |
+| **Build Command**  | `npm run build` |
+| **Output Directory** | `dist` |
+
+Add the environment variable `VITE_API_BASE_URL` (e.g. `https://quickpoll-h3on.onrender.com`) under **Settings → Environment Variables** so the bundled app knows where to reach the API. Each time you change the backend URL, trigger a new Vercel deployment.
 
 Happy polling! With the backend in place you can continue iterating on richer poll logic while keeping CI/CD guardrails in place.
