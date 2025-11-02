@@ -158,7 +158,7 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 1. Push changes to a feature branch, open a PR, and let the `CI` workflow validate both apps.
 2. Merge to `main` when ready. CI will rerun and GitHub Pages will build the latest frontend bundle.
-3. Deploy the backend by triggering **Actions → Package Backend** (optional `ref` input allows deploying a specific commit).
+3. Deploy the backend to Render (recommended setup below) or your platform of choice. A Render blueprint is provided via the root `package.json` so you can use `npm start` from the repo root.
 4. If you need to roll back:
    - Re-run **Package Backend** with the previous commit SHA to redeploy the prior backend bundle.
    - Trigger **Deploy to GitHub Pages → Run workflow** with the same commit SHA to republish the earlier frontend.
@@ -172,5 +172,17 @@ Both workflows keep recent artifacts so you can download and redeploy manually i
 - **Email confirmations**: Supabase requires email confirmation by default. Complete the confirmation step before signing in.
 - **Schema mismatches**: Ensure you added the `created_by` column and re-ran the SQL migration above. Stale tables will cause inserts to fail.
 - **GitHub Pages pointing at the wrong API**: Set `VITE_API_BASE_URL` as a repository variable so builds target your deployed backend.
+
+## Render deployment quick start
+
+The repository root now exposes a top-level `package.json` with scripts tailored for Render:
+
+| Render setting   | Value |
+| ---------------- | ----- |
+| **Root Directory** | `.` (repository root) |
+| **Build Command** | `npm run render:build` |
+| **Start Command** | `npm start` |
+
+The `render:build` script installs production dependencies for the server package, so the runtime container only ships what Express needs. Add the required environment variables in Render (**SUPABASE_URL**, **SUPABASE_SERVICE_ROLE_KEY**, **SUPABASE_ANON_KEY**, and **CLIENT_ORIGIN**) and the service will boot using the same entrypoint as local production (`node src/index.js`).
 
 Happy polling! With the backend in place you can continue iterating on richer poll logic while keeping CI/CD guardrails in place.
